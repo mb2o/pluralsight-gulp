@@ -8,6 +8,10 @@ var $ = require('gulp-load-plugins')({
 });
 var port = process.env.PORT || config.defaultPort;
 
+gulp.task('help', $.taskListing);
+
+gulp.task('default', ['help']);
+
 gulp.task('vet', function () {
     'use strict';
     log('Analyzing source with JSCS and JSHint');
@@ -36,11 +40,45 @@ gulp.task('styles', ['clean-styles'], function () {
         .pipe(gulp.dest(config.temp));
 });
 
-// Does not have a stream, so should use a callback
-gulp.task('clean-styles', function (done) {
-    var files = config.temp + '**/*.css';
+gulp.task('fonts', ['clean-fonts'], function () {
+    log('Copying fonts');
 
-    clean(files, done);
+    return gulp
+        .src(config.fonts)
+        .pipe(gulp.dest(config.build + 'fonts'));
+});
+
+gulp.task('images', ['clean-images'], function () {
+    log('Copying and compressing images');
+
+    return gulp
+        .src(config.images)
+        .pipe($.imagemin({
+            optimizationLevel: 4
+        }))
+        .pipe(gulp.dest(config.build + 'images'));
+});
+
+// Does not have a streams, so should use a callback
+gulp.task('clean', function (done) {
+    var delconfig = [].concat(config.build, config.temp);
+    log('Cleaning: ' + $.util.colors.blue(delconfig));
+    del(delconfig, done);
+});
+
+// Does not have a streams, so should use a callback
+gulp.task('clean-fonts', function (done) {
+    clean(config.build + 'fonts/**/*.*', done);
+});
+
+// Does not have a streams, so should use a callback
+gulp.task('clean-images', function (done) {
+    clean(config.build + 'images/**/*.*', done);
+});
+
+// Does not have a streams, so should use a callback
+gulp.task('clean-styles', function (done) {
+    clean(config.temp + '**/*.css', done);
 });
 
 gulp.task('less-watcher', function () {
