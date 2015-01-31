@@ -1,5 +1,6 @@
 var gulp = require('gulp');
 var args = require('yargs').argv;
+var browserSync = require('browser-sync');
 var del = require('del');
 var config = require('./gulp.config')();
 var $ = require('gulp-load-plugins')({
@@ -60,7 +61,7 @@ gulp.task('wiredep', function () {
 });
 
 gulp.task('inject', ['wiredep', 'styles'], function () {
-    log('Wire up app css and app js into the html, after wiredep and styles have run');
+    log('Wiring up app dependencies into the html, after wiredep and styles have run');
 
     var options = config.getWiredepDefaultOptions();
     var wiredep = require('wiredep').stream;
@@ -87,10 +88,17 @@ gulp.task('serve-dev', ['inject'], function () {
     return $.nodemon(nodeOptions)
         .on('restart', ['vet'], function (ev) {
             log('*** nodemon restarted ***');
-            log('files changed on restart:\n' + ev)
+            log('files changed on restart:\n' + ev);
+            setTimeout(function () {
+                browserSync.notify('reloading now ...');
+                browserSync.reload({
+                    stream: false
+                });
+            }, config.browserReloadDelay);
         })
         .on('start', function () {
             log('*** nodemon started ***');
+            startBrowserSync();
         })
         .on('crash', function () {
             log('*** nodemon crashed: script crashed fr some reason ***');
@@ -110,6 +118,49 @@ gulp.task('serve-dev', ['inject'], function () {
 //    // Use Gulps' emit to end the pipeline!
 //    this.emit('end');
 //}
+
+function changeEvent(event) {
+    var srcPattern = new RegExp('/.*(?=/' + config.source + ')/');
+
+    log('File ' + event.path.replace(srcPattern, '') + ' ' + event.type);
+}
+
+function startBrowserSync() {
+    if (args.nosync || browserSync.active) {
+        return;
+    }
+
+    log('Starting browser-sync on port ' + port);
+
+    gulp.watch([config.less], ['styles'])
+        .on('change', function (ev) {
+            changeEvent(ev);
+        });
+
+    var options = {
+        proxy: 'localhost:' + port,
+        port: 3000,
+        files: [
+            config.client + '**/*.*',
+            '!' + config.less,
+            config.temp + '**/*.css'
+        ],
+        ghostMode: {
+            clicks: true,
+            location: false,
+            forms: true,
+            scroll: true
+        },
+        injectChanges: true, // CSS
+        logFileChanges: true,
+        logLevel: 'debug',
+        logPrefix: 'gulp-patterns',
+        notify: true,
+        reloadDelay: 1000
+    };
+
+    browserSync(options);
+}
 
 function clean(path, done) {
     log('Cleaning: ' + $.util.colors.blue(path));
