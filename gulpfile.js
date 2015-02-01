@@ -59,30 +59,50 @@ gulp.task('images', ['clean-images'], function () {
         .pipe(gulp.dest(config.build + 'images'));
 });
 
-// Does not have a streams, so should use a callback
+// Does not have a stream, so should use a callback
 gulp.task('clean', function (done) {
     var delconfig = [].concat(config.build, config.temp);
     log('Cleaning: ' + $.util.colors.blue(delconfig));
     del(delconfig, done);
 });
 
-// Does not have a streams, so should use a callback
+// Does not have a stream, so should use a callback
 gulp.task('clean-fonts', function (done) {
     clean(config.build + 'fonts/**/*.*', done);
 });
 
-// Does not have a streams, so should use a callback
+// Does not have a stream, so should use a callback
 gulp.task('clean-images', function (done) {
     clean(config.build + 'images/**/*.*', done);
 });
 
-// Does not have a streams, so should use a callback
+// Does not have a stream, so should use a callback
 gulp.task('clean-styles', function (done) {
     clean(config.temp + '**/*.css', done);
 });
 
+// Does not have a stream, so should use a callback
+gulp.task('clean-code', function (done) {
+    var files = [].concat(
+        config.temp + '**/*.js',
+        config.build + '**/*.html',
+        config.build + 'js/**/*.js'
+    );
+    clean(files, done);
+});
+
 gulp.task('less-watcher', function () {
     gulp.watch([config.less], ['styles']);
+});
+
+gulp.task('templatecache', function () {
+    log('Creating AngularJS $templateCache');
+
+    return gulp
+        .src(config.htmltemplates)
+        .pipe($.minifyHtml({empty: true}))
+        .pipe($.angularTemplatecache(config.templateCache.file, config.templateCache.options))
+        .pipe(gulp.dest(config.temp));
 });
 
 gulp.task('wiredep', function () {
@@ -146,7 +166,9 @@ gulp.task('serve-dev', ['inject'], function () {
         });
 });
 
-/////////////////////
+//////////////////////////
+//   Helper functions   //
+//////////////////////////
 
 //function errorLogger(error) {
 //    log('*** Start of Error ***');
