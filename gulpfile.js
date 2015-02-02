@@ -1,16 +1,17 @@
 var gulp = require('gulp');
 var args = require('yargs').argv;
 var browserSync = require('browser-sync');
-var del = require('del');
 var config = require('./gulp.config')();
+var del = require('del');
+var path = require('path');
+var port = process.env.PORT || config.defaultPort;
+var _ = require('lodash');
 var $ = require('gulp-load-plugins')({
     lazy: true
 });
-var port = process.env.PORT || config.defaultPort;
 
 gulp.task('help', $.taskListing);
 gulp.task('default', ['help']);
-
 
 gulp.task('vet', function () {
     'use strict';
@@ -26,7 +27,6 @@ gulp.task('vet', function () {
         }))
         .pipe($.jshint.reporter('fail'));
 });
-
 
 gulp.task('styles', ['clean-styles'], function () {
     log('Compiling Less --> CSS');
@@ -60,7 +60,6 @@ gulp.task('images', ['clean-images'], function () {
         .pipe(gulp.dest(config.build + 'images'));
 });
 
-
 // Does not have a stream, so should use a callback
 gulp.task('clean', function (done) {
     var delconfig = [].concat(config.build, config.temp);
@@ -89,7 +88,6 @@ gulp.task('clean-code', function (done) {
     clean(files, done);
 });
 
-
 gulp.task('less-watcher', function () {
     gulp.watch([config.less], ['styles']);
 });
@@ -99,7 +97,9 @@ gulp.task('templatecache', function () {
 
     return gulp
         .src(config.htmltemplates)
-        .pipe($.minifyHtml({empty: true}))
+        .pipe($.minifyHtml({
+            empty: true
+        }))
         .pipe($.angularTemplatecache(config.templateCache.file, config.templateCache.options))
         .pipe(gulp.dest(config.temp));
 });
@@ -129,58 +129,119 @@ gulp.task('inject', ['wiredep', 'styles', 'templatecache'], function () {
         .pipe(gulp.dest(config.client));
 });
 
-gulp.task('optimize', ['inject', 'fonts', 'images'], function () {
+gulp.task('build', ['optimize', 'fonts', 'images'], function () {
+    log('Building everything');
+
+    var msg = {
+        title: 'gulp build',
+        subtitle: 'Deployed to the build folder',
+        message: 'Running gulp serve-build '
+    };
+
+    del(config.temp);
+    log(msg);
+    notify(msg);
+});
+
+gulp.task('optimize', ['inject', 'test'], function () {
     log('Optimizing javascript, css and html files');
 
-	var assets = $.useref.assets({searchPath: './'});
-	var templateCache = config.temp + config.templateCache.file;
-	var cssFilter = $.filter('**/*.css');
-	var jsLibFilter = $.filter('**/' + config.optimized.lib);
-	var jsAppFilter = $.filter('**/' + config.optimized.app);
+    var assets = $.useref.assets({
+        searchPath: './'
+    });
+    var templateCache = config.temp + config.templateCache.file;
+    var cssFilter = $.filter('**/*.css');
+    var jsLibFilter = $.filter('**/' + config.optimized.lib);
+    var jsAppFilter = $.filter('**/' + config.optimized.app);
 
     return gulp
         .src(config.index)
         .pipe($.plumber())
-        .pipe($.inject(gulp.src(templateCache, {read: false}), {
-			starttag: '<!-- inject:templates:js -->'
-		}))
-		.pipe(assets)
+        .pipe($.inject(gulp.src(templateCache, {
+            read: false
+        }), {
+            starttag: '<!-- inject:templates:js -->'
+        }))
+        .pipe(assets)
 
-		.pipe(cssFilter)
-		.pipe($.csso())
-		.pipe(cssFilter.restore())
+    .pipe(cssFilter)
+        .pipe($.csso())
+        .pipe(cssFilter.restore())
 
-		.pipe(jsLibFilter)
-		.pipe($.uglify())
-		.pipe(jsLibFilter.restore())
+    .pipe(jsLibFilter)
+        .pipe($.uglify())
+        .pipe(jsLibFilter.restore())
 
-		.pipe(jsAppFilter)
-		.pipe($.ngAnnotate())
-		.pipe($.uglify())
-		.pipe(jsAppFilter.restore())
+    .pipe(jsAppFilter)
+        .pipe($.ngAnnotate())
+        .pipe($.uglify())
+        .pipe(jsAppFilter.restore())
 
-		.pipe($.rev()) // app.js --> app-928ba923.js
+    .pipe($.rev()) // app.js --> app-928ba923.js
 
-		.pipe(assets.restore())
-		.pipe($.useref())
+    .pipe(assets.restore())
+        .pipe($.useref())
 
-		.pipe($.revReplace())
+    .pipe($.revReplace())
 
-        .pipe(gulp.dest(config.build));
+    .pipe(gulp.dest(config.build));
 });
 
-
-gulp.task('serve-build', ['optimize'], function () {
-	serve(false);
+gulp.task('serve-build', ['build'], function () {
+    serve(false);
 });
 
 gulp.task('serve-dev', ['inject'], function () {
-	serve(true);
+    serve(true);
+});
+
+gulp.task('test', ['vet', 'templatecache'], function (done) {
+    startTests(true, done);
+});
+
+gulp.task('autotest', ['vet', 'templatecache'], function (done) {
+    startTests(false, done);
 });
 
 //////////////////////////
 //   Helper functions   //
 //////////////////////////
+
+function changeEvent(event) {
+    var srcPattern = new RegExp('/.*(?=/' + config.source + ')/');
+
+    log('File ' + event.path.replace(srcPattern, '') + ' ' + event.type);
+}
+
+function clean(path, done) {
+    log('Cleaning: ' + $.util.colors.blue(path));
+    del(path, done);
+}
+
+function log(msg) {
+    'use strict';
+    var item;
+    if (typeof (msg) === 'object') {
+        for (item in msg) {
+            if (msg.hasOwnProperty(item)) {
+                $.util.log($.util.colors.blue(msg[item]));
+            }
+        }
+    } else {
+        $.util.log($.util.colors.blue(msg));
+    }
+}
+
+function notify(options) {
+    var notifier = require('node-notifier');
+    var notifyOptions = {
+        sound: 'Bottle',
+        contentImage: path.join(__dirname, 'gulp.png'),
+        icon: path.join(__dirname, 'gulp.png')
+    };
+    _.assign(notifyOptions, options);
+    notifier.notify(notifyOptions);
+}
 
 function serve(isDev) {
     var nodeOptions = {
@@ -216,12 +277,6 @@ function serve(isDev) {
         });
 }
 
-function changeEvent(event) {
-    var srcPattern = new RegExp('/.*(?=/' + config.source + ')/');
-
-    log('File ' + event.path.replace(srcPattern, '') + ' ' + event.type);
-}
-
 function startBrowserSync(isDev) {
     if (args.nosync || browserSync.active) {
         return;
@@ -229,15 +284,18 @@ function startBrowserSync(isDev) {
 
     log('Starting browser-sync on port ' + port);
 
-	if (isDev) {
-		gulp.watch([config.less], ['styles']).on('change', function (ev) {
+    if (isDev) {
+        gulp.watch([config.less], ['styles']).on('change', function (ev) {
             changeEvent(ev);
         });
-	} else {
-		gulp.watch([config.less, config.js, config.html], ['optimize', browserSync.reload]).on('change', function (ev) {
+    } else {
+        gulp.watch([config.less, config.js, config.html], [
+            'optimize',
+            browserSync.reload
+        ]).on('change', function (ev) {
             changeEvent(ev);
         });
-	}
+    }
 
     var options = {
         proxy: 'localhost:' + port,
@@ -264,22 +322,26 @@ function startBrowserSync(isDev) {
     browserSync(options);
 }
 
-function clean(path, done) {
-    log('Cleaning: ' + $.util.colors.blue(path));
-    del(path, done);
-}
+function startTests(singleRun, done) {
+    var karma = require('karma').server;
+    var excludeFiles = [];
+    var serverSpecs = config.serverIntegrationSpecs;
 
-function log(msg) {
-    'use strict';
-    var item;
-    if (typeof (msg) === 'object') {
-        for (item in msg) {
-            if (msg.hasOwnProperty(item)) {
-                $.util.log($.util.colors.blue(msg[item]));
-            }
+    excludeFiles = serverSpecs;
+
+    karma.start({
+        configFile: __dirname + '/karma.conf.js',
+        exclude: excludeFiles,
+        singleRun: !!singleRun
+    }, karmaCompleted);
+
+    function karmaCompleted(karmaResult) {
+        log('Karma completed');
+        if (karmaResult === 1) {
+            done('karma: tests failed with code: ' + karmaResult);
+        } else {
+            done();
         }
-    } else {
-        $.util.log($.util.colors.blue(msg));
     }
 }
 

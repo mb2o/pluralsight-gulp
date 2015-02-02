@@ -1,8 +1,13 @@
 module.exports = function () {
     var client = './src/client/';
     var clientApp = client + 'app/';
-    var temp = './.tmp/';
+    var report = './report/';
     var server = './src/server/';
+    var temp = './.tmp/';
+    var wiredep = require('wiredep');
+    var bowerFiles = wiredep({
+        devDependencies: true
+    })['js'];
 
     var config = {
         /**
@@ -16,7 +21,7 @@ module.exports = function () {
         client: client,
         css: temp + 'styles.css',
         fonts: './bower_components/font-awesome/fonts/*.*',
-		html: clientApp + '**/*.html',
+        html: clientApp + '**/*.html',
         htmltemplates: clientApp + '**/*.html',
         images: client + './images/**/*.*',
         index: client + 'index.html',
@@ -26,17 +31,16 @@ module.exports = function () {
             '!' + clientApp + '**/*.spec.js',
         ],
         less: client + 'styles/styles.less',
+        report: report,
         server: server,
         temp: temp,
-
-		/*
-		 * optimized files
-		 */
-		optimized: {
-			lib: 'lib.js',
-			app: 'app.js',
-		},
-
+        /*
+         * optimized files
+         */
+        optimized: {
+            lib: 'lib.js',
+            app: 'app.js',
+        },
         /**
          * template cache
          */
@@ -48,7 +52,6 @@ module.exports = function () {
                 root: 'app/'
             }
         },
-
         /**
          * browser sync
          */
@@ -62,13 +65,16 @@ module.exports = function () {
             directory: './bower_components/',
             ignorePath: '../..'
         },
-
+        /**
+         * karma and testing settings
+         */
+        serverIntegrationSpecs: [client + 'tests/server-integration/**/*.spec.js'],
+        specHelpers: [client + 'test-helpers/*.js'],
         /**
          * Node settings
          */
         defaultPort: 7203,
         nodeServer: './src/server/app.js',
-
     };
 
     config.getWiredepDefaultOptions = function () {
@@ -80,5 +86,44 @@ module.exports = function () {
         return options;
     };
 
+    config.karma = getKarmaOptions();
+
     return config;
+
+    /////////////////////////
+
+    function getKarmaOptions() {
+        var options = {
+            files: [].concat(
+                bowerFiles,
+                config.specHelpers,
+                client + '**/*.module.js',
+                client + '**/*.js',
+                temp + config.templateCache.file,
+                config.serverIntegrationSpecs
+            ),
+            exclude: [],
+            coverage: {
+                dir: report + 'coverage',
+                reporters: [
+                    {
+                        type: 'html',
+                        subdir: 'report-html'
+                    },
+                    {
+                        type: 'lcov',
+                        subdir: 'report-lcov'
+                    },
+                    {
+                        type: 'text-summary'
+                    }
+                ]
+            },
+            preprocessors: {}
+        };
+
+        options.preprocessors[clientApp + '**/!(*.spec)+(.js)'] = ['coverage'];
+
+        return options;
+    }
 };
