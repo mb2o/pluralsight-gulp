@@ -9,8 +9,8 @@ var $ = require('gulp-load-plugins')({
 var port = process.env.PORT || config.defaultPort;
 
 gulp.task('help', $.taskListing);
-
 gulp.task('default', ['help']);
+
 
 gulp.task('vet', function () {
     'use strict';
@@ -26,6 +26,7 @@ gulp.task('vet', function () {
         }))
         .pipe($.jshint.reporter('fail'));
 });
+
 
 gulp.task('styles', ['clean-styles'], function () {
     log('Compiling Less --> CSS');
@@ -59,6 +60,7 @@ gulp.task('images', ['clean-images'], function () {
         .pipe(gulp.dest(config.build + 'images'));
 });
 
+
 // Does not have a stream, so should use a callback
 gulp.task('clean', function (done) {
     var delconfig = [].concat(config.build, config.temp);
@@ -66,22 +68,18 @@ gulp.task('clean', function (done) {
     del(delconfig, done);
 });
 
-// Does not have a stream, so should use a callback
 gulp.task('clean-fonts', function (done) {
     clean(config.build + 'fonts/**/*.*', done);
 });
 
-// Does not have a stream, so should use a callback
 gulp.task('clean-images', function (done) {
     clean(config.build + 'images/**/*.*', done);
 });
 
-// Does not have a stream, so should use a callback
 gulp.task('clean-styles', function (done) {
     clean(config.temp + '**/*.css', done);
 });
 
-// Does not have a stream, so should use a callback
 gulp.task('clean-code', function (done) {
     var files = [].concat(
         config.temp + '**/*.js',
@@ -90,6 +88,7 @@ gulp.task('clean-code', function (done) {
     );
     clean(files, done);
 });
+
 
 gulp.task('less-watcher', function () {
     gulp.watch([config.less], ['styles']);
@@ -160,10 +159,16 @@ gulp.task('optimize', ['inject', 'fonts', 'images'], function () {
 		.pipe($.uglify())
 		.pipe(jsAppFilter.restore())
 
+		.pipe($.rev()) // app.js --> app-928ba923.js
+
 		.pipe(assets.restore())
 		.pipe($.useref())
+
+		.pipe($.revReplace())
+
         .pipe(gulp.dest(config.build));
 });
+
 
 gulp.task('serve-build', ['optimize'], function () {
 	serve(false);
