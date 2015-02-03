@@ -2,6 +2,7 @@ module.exports = function () {
     var client = './src/client/';
     var clientApp = client + 'app/';
     var report = './report/';
+    var root = './';
     var server = './src/server/';
     var specRunnerFile = 'specs.html';
     var temp = './.tmp/';
@@ -33,6 +34,7 @@ module.exports = function () {
         ],
         less: client + 'styles/styles.less',
         report: report,
+        root: root,
         server: server,
         temp: temp,
 

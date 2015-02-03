@@ -14,6 +14,34 @@ var $ = require('gulp-load-plugins')({
 gulp.task('help', $.taskListing);
 gulp.task('default', ['help']);
 
+// Does not have a stream, so should use a callback
+gulp.task('clean', function (done) {
+    var delconfig = [].concat(config.build, config.temp);
+    log('Cleaning: ' + $.util.colors.blue(delconfig));
+    del(delconfig, done);
+});
+
+gulp.task('clean-fonts', function (done) {
+    clean(config.build + 'fonts/**/*.*', done);
+});
+
+gulp.task('clean-images', function (done) {
+    clean(config.build + 'images/**/*.*', done);
+});
+
+gulp.task('clean-styles', function (done) {
+    clean(config.temp + '**/*.css', done);
+});
+
+gulp.task('clean-code', function (done) {
+    var files = [].concat(
+        config.temp + '**/*.js',
+        config.build + '**/*.html',
+        config.build + 'js/**/*.js'
+    );
+    clean(files, done);
+});
+
 gulp.task('vet', function () {
     'use strict';
     log('Analyzing source with JSCS and JSHint');
@@ -59,34 +87,6 @@ gulp.task('images', ['clean-images'], function () {
             optimizationLevel: 4
         }))
         .pipe(gulp.dest(config.build + 'images'));
-});
-
-// Does not have a stream, so should use a callback
-gulp.task('clean', function (done) {
-    var delconfig = [].concat(config.build, config.temp);
-    log('Cleaning: ' + $.util.colors.blue(delconfig));
-    del(delconfig, done);
-});
-
-gulp.task('clean-fonts', function (done) {
-    clean(config.build + 'fonts/**/*.*', done);
-});
-
-gulp.task('clean-images', function (done) {
-    clean(config.build + 'images/**/*.*', done);
-});
-
-gulp.task('clean-styles', function (done) {
-    clean(config.temp + '**/*.css', done);
-});
-
-gulp.task('clean-code', function (done) {
-    var files = [].concat(
-        config.temp + '**/*.js',
-        config.build + '**/*.html',
-        config.build + 'js/**/*.js'
-    );
-    clean(files, done);
 });
 
 gulp.task('less-watcher', function () {
@@ -212,11 +212,44 @@ gulp.task('optimize', ['inject', 'test'], function () {
         .pipe(assets.restore())
         .pipe($.useref())
         .pipe($.revReplace())
+        .pipe(gulp.dest(config.build))
+        .pipe($.rev.manifest())
         .pipe(gulp.dest(config.build));
 });
 
+/**
+ * Bump the version
+ * --type=pre will bump the prerelease version *.*.*-x
+ * --type=patch or no flag will bump the patch version *.*.x
+ * --type=minor will bump the minor version *.x.*
+ * --type=major will bump the major version x.*.*
+ * --version=1.2.3 will bump to a specific version and ignore other flags
+ */
+gulp.task('bump', function () {
+    var msg = 'Bumping versions';
+    var type = args.type;
+    var version = args.version;
+    var options = {};
+
+    if (version) {
+        options.version = version;
+        msg += ' to ' + version;
+    } else {
+        options.type = type;
+        msg += ' for a ' + type;
+    }
+
+    log(msg);
+
+    return gulp
+        .src(config.packages)
+        .pipe($.print())
+        .pipe($.bump(options))
+        .pipe(gulp.dest(config.root));
+});
+
 gulp.task('serve-specs', ['build-specs'], function (done) {
-    serve(true /* isDev */, true /* specRunner */);
+    serve(true /* isDev */ , true /* specRunner */ );
     done();
 });
 
