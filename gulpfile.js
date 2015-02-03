@@ -144,6 +144,40 @@ gulp.task('build', ['optimize', 'fonts', 'images'], function () {
     notify(msg);
 });
 
+gulp.task('build-specs', ['templatecache'], function () {
+    log('build the spec runner');
+
+    var wiredep = require('wiredep').stream;
+    var options = config.getWiredepDefaultOptions(true);
+    var specs = config.specs;
+
+    if (args.startServers) {
+        specs = [].concat(specs, config.serverIntegrationSpecs);
+    }
+
+    return gulp
+        .src(config.specRunner)
+        .pipe(wiredep(options))
+        .pipe($.inject(gulp.src(config.testlibraries), {
+            name: 'inject:testlibraries',
+            read: false
+        }))
+        .pipe($.inject(gulp.src(config.js)))
+        .pipe($.inject(gulp.src(config.specHelpers), {
+            name: 'inject:spechelpers',
+            read: false
+        }))
+        .pipe($.inject(gulp.src(specs), {
+            name: 'inject:specs',
+            read: false
+        }))
+        .pipe($.inject(gulp.src(config.temp + config.templateCache.file), {
+            name: 'inject:templates',
+            read: false
+        }))
+        .pipe(gulp.dest(config.client));
+});
+
 gulp.task('optimize', ['inject', 'test'], function () {
     log('Optimizing javascript, css and html files');
 
@@ -179,6 +213,11 @@ gulp.task('optimize', ['inject', 'test'], function () {
         .pipe($.useref())
         .pipe($.revReplace())
         .pipe(gulp.dest(config.build));
+});
+
+gulp.task('serve-specs', ['build-specs'], function (done) {
+    serve(true /* isDev */, true /* specRunner */);
+    done();
 });
 
 gulp.task('serve-build', ['build'], function () {
@@ -237,7 +276,7 @@ function notify(options) {
     notifier.notify(notifyOptions);
 }
 
-function serve(isDev) {
+function serve(isDev, isSpecRunner) {
     var nodeOptions = {
         script: config.nodeServer,
         delayTime: 1,
@@ -261,7 +300,7 @@ function serve(isDev) {
         })
         .on('start', function () {
             log('*** nodemon started ***');
-            startBrowserSync(isDev);
+            startBrowserSync(isDev, isSpecRunner);
         })
         .on('crash', function () {
             log('*** nodemon crashed: script crashed fr some reason ***');
@@ -271,7 +310,7 @@ function serve(isDev) {
         });
 }
 
-function startBrowserSync(isDev) {
+function startBrowserSync(isDev, isSpecRunner) {
     if (args.nosync || browserSync.active) {
         return;
     }
@@ -313,6 +352,10 @@ function startBrowserSync(isDev) {
         reloadDelay: 1000
     };
 
+    if (isSpecRunner) {
+        options.startPath = config.specRunnerFile;
+    }
+
     browserSync(options);
 }
 
@@ -326,9 +369,8 @@ function startTests(singleRun, done) {
     // gulp test --startServers
     if (args.startServers) {
         log('Starting server');
-        var savedEnv = process.env;
-        savedEnv.NODE_ENV = 'dev';
-        savedEnv.PORT = 8888;
+        process.env.NODE_ENV = 'dev';
+        process.env.PORT = 8888;
         child = fork(config.nodeServer);
     } else {
         if (serverSpecs && serverSpecs.length) {

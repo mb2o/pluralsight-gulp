@@ -3,9 +3,12 @@ module.exports = function () {
     var clientApp = client + 'app/';
     var report = './report/';
     var server = './src/server/';
+    var specRunnerFile = 'specs.html';
     var temp = './.tmp/';
     var wiredep = require('wiredep');
-    var bowerFiles = wiredep({devDependencies: true})['js'];
+    var bowerFiles = wiredep({
+        devDependencies: true
+    })['js'];
 
     var config = {
         /**
@@ -67,6 +70,26 @@ module.exports = function () {
             ignorePath: '../..'
         },
 
+        packages: [
+            './package.json',
+            './bower.json'
+        ],
+
+        /**
+         * specs.html, our HTML spec runner
+         */
+        specRunner: client + specRunnerFile,
+        specRunnerFile: specRunnerFile,
+        testlibraries: [
+            'node_modules/mocha/mocha.js',
+            'node_modules/chai/chai.js',
+            'node_modules/mocha-clean/index.js',
+            'node_modules/sinon-chai/lib/sinon-chai.js'
+        ],
+        specs: [
+            clientApp + '**/*.spec.js'
+        ],
+
         /**
          * karma and testing settings
          */
@@ -77,14 +100,15 @@ module.exports = function () {
          * Node settings
          */
         defaultPort: 7203,
-        nodeServer: './src/server/app.js',
+        nodeServer: server + 'app.js',
     };
 
-    config.getWiredepDefaultOptions = function () {
+    config.getWiredepDefaultOptions = function (devDependencies) {
         var options = {
             bowerJson: config.bower.json,
             directory: config.bower.directory,
-            ignorePath: config.bower.ignorePath
+            ignorePath: config.bower.ignorePath,
+            devDependencies: devDependencies
         };
         return options;
     };
