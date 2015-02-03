@@ -5,9 +5,7 @@ module.exports = function () {
     var server = './src/server/';
     var temp = './.tmp/';
     var wiredep = require('wiredep');
-    var bowerFiles = wiredep({
-        devDependencies: true
-    })['js'];
+    var bowerFiles = wiredep({devDependencies: true})['js'];
 
     var config = {
         /**
@@ -34,6 +32,7 @@ module.exports = function () {
         report: report,
         server: server,
         temp: temp,
+
         /*
          * optimized files
          */
@@ -41,6 +40,7 @@ module.exports = function () {
             lib: 'lib.js',
             app: 'app.js',
         },
+
         /**
          * template cache
          */
@@ -52,6 +52,7 @@ module.exports = function () {
                 root: 'app/'
             }
         },
+
         /**
          * browser sync
          */
@@ -65,11 +66,13 @@ module.exports = function () {
             directory: './bower_components/',
             ignorePath: '../..'
         },
+
         /**
          * karma and testing settings
          */
         serverIntegrationSpecs: [client + 'tests/server-integration/**/*.spec.js'],
         specHelpers: [client + 'test-helpers/*.js'],
+
         /**
          * Node settings
          */

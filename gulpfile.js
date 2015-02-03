@@ -1,4 +1,5 @@
 var gulp = require('gulp');
+
 var args = require('yargs').argv;
 var browserSync = require('browser-sync');
 var config = require('./gulp.config')();
@@ -163,28 +164,21 @@ gulp.task('optimize', ['inject', 'test'], function () {
             starttag: '<!-- inject:templates:js -->'
         }))
         .pipe(assets)
-
-    .pipe(cssFilter)
+        .pipe(cssFilter)
         .pipe($.csso())
         .pipe(cssFilter.restore())
-
-    .pipe(jsLibFilter)
+        .pipe(jsLibFilter)
         .pipe($.uglify())
         .pipe(jsLibFilter.restore())
-
-    .pipe(jsAppFilter)
+        .pipe(jsAppFilter)
         .pipe($.ngAnnotate())
         .pipe($.uglify())
         .pipe(jsAppFilter.restore())
-
-    .pipe($.rev()) // app.js --> app-928ba923.js
-
-    .pipe(assets.restore())
+        .pipe($.rev()) // app.js --> app-928ba923.js
+        .pipe(assets.restore())
         .pipe($.useref())
-
-    .pipe($.revReplace())
-
-    .pipe(gulp.dest(config.build));
+        .pipe($.revReplace())
+        .pipe(gulp.dest(config.build));
 });
 
 gulp.task('serve-build', ['build'], function () {
@@ -323,11 +317,24 @@ function startBrowserSync(isDev) {
 }
 
 function startTests(singleRun, done) {
+    var child;
+    var fork = require('child_process').fork;
     var karma = require('karma').server;
     var excludeFiles = [];
     var serverSpecs = config.serverIntegrationSpecs;
 
-    excludeFiles = serverSpecs;
+    // gulp test --startServers
+    if (args.startServers) {
+        log('Starting server');
+        var savedEnv = process.env;
+        savedEnv.NODE_ENV = 'dev';
+        savedEnv.PORT = 8888;
+        child = fork(config.nodeServer);
+    } else {
+        if (serverSpecs && serverSpecs.length) {
+            excludeFiles = serverSpecs;
+        }
+    }
 
     karma.start({
         configFile: __dirname + '/karma.conf.js',
@@ -337,6 +344,10 @@ function startTests(singleRun, done) {
 
     function karmaCompleted(karmaResult) {
         log('Karma completed');
+        if (child) {
+            log('Shutting down the child process');
+            child.kill();
+        }
         if (karmaResult === 1) {
             done('karma: tests failed with code: ' + karmaResult);
         } else {
